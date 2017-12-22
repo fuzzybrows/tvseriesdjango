@@ -55,7 +55,7 @@ ROOT_URLCONF = 'tvseriesdownloaddjango.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [os.path.join(BASE_DIR,  'templates')],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -120,8 +120,14 @@ USE_TZ = True
 
 STATIC_URL = '/static/'
 
-TEMPLATE_DIRS = (os.path.join(BASE_DIR,  'templates'),)
+#TEMPLATE_DIRS = (os.path.join(BASE_DIR,  'templates'),)
 
 DOWNLOAD_PATH = "/Users/oreoluwa/Downloads/TVshows"
 SOURCE_URL = "http://o2tvseries.com"
 USER_AGENT = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/535.11 (KHTML, like Gecko) Ubuntu/11.10 Chromium/27.0.1453.93 Chrome/27.0.1453.93 Safari/537.36"
+WATCHED_SHOWS = [
+            'Arrow', 'Blindspot', 'Agents of shield', 'Empire', 'Gotham',
+            'Greys Anatomy', 'How to get away with murder',
+            'Modern family', 'Reign', 'Quantico', 'The flash',
+            'Scandal', 'Hawaii', 'Supergirl', 'Iron Fist', 'Agent Carter', 'Power', 'Legends of tomorrow', 'Daredevil', 'Game of Thrones', 'Heroes Reborn', 'Mistresses', 'Orange is the new black', 'Vikings', 'Jessica Jones', 'Luke Cage'
+]
