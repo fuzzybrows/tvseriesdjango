@@ -22,12 +22,15 @@ headers = {'user-agent': settings.USER_AGENT}
 
 
 prompts = {1: "Please enter show name: ",
-           3: "Please enter the show_name, season and episode number as guided by the prompts"}
+           3: "Please enter the show_name, season and episode number as guided by the prompts",
+           4: "Please enter show name: "}
 
 def input():
     options = dict([(1, "New Show"),
                (2, "Update Show Repertoire"),
-               (3, "Download Specific Episode")])
+               (3, "Download Specific Episode"),
+               (4, "Pre-populate single show DB"),
+                (5,"Populate all Shows")])
 
     for num, text in options.iteritems():
         print "{}, {}".format(num, text)
@@ -47,31 +50,22 @@ def input():
 def get_show_group_url(input):
     first_letter = input[0][0]
     if first_letter < 'd':
-        print (first_letter, 'Group A')
         pageurl = '/a'
     elif first_letter >= 'd' and first_letter < 'g':
-        print(first_letter, 'Group D')
         pageurl = '/d'
     elif first_letter >= 'g' and first_letter < 'j':
-        print(first_letter, 'Group G')
         pageurl = '/g'
     elif first_letter >= 'j' and first_letter < 'm':
-        print (first_letter, 'Group J')
         pageurl = '/j'
     elif first_letter >= 'm' and first_letter < 'p':
-        print (first_letter, 'Group M')
         pageurl = '/m'
     elif first_letter >= 'p' and first_letter < 's':
-        print (first_letter, 'Group P')
         pageurl = '/p'
     elif first_letter >= 's' and first_letter < 'v':
-        print (first_letter, 'Group S')
         pageurl = '/s'
     elif first_letter >= 'v' and first_letter < 'y':
-        print (first_letter, 'Group V')
         pageurl = '/v'
     elif first_letter >= 'y':
-        print (first_letter, 'Group Y')
         pageurl = '/y'
     else:
         raise ValueError("Invalid Entry Please check your response and try again")
@@ -121,16 +115,30 @@ def find_last_page(index_page_a_tags):
             return url, page_no
     return None
 
+def get_season_no(x):
+    return int(re.search("\d+$", x).group(0))
 
 def get_show_seasons(show_name):
-    show_url, _ = get_show_url(show_name)
+    """
+    Gets urls for all the seasons of the supplied Show name
+    :param show_name: Name of show to be processed
+    :return: a sorted list of 2 Tuples containing Season Name and Season URL
+    """
+    show_url, proper_show_name = get_show_url(show_name)
+    show, _ = Show.objects.get_or_create(title=proper_show_name, show_url=show_url, active=True)
+    show.save()
     tags = get_a_tags(show_url)
     seasons = []
     for tag in tags:
         checker = tag.string and re.search('season\s\d+', tag.string.lower())
         if checker:
             seasons.append((tag.string, tag.get('href')))
-    return sorted(seasons, key=lambda x: int(re.search("\d+$", x[0]).group(0)))
+    result =  sorted(seasons, key=lambda x: get_season_no(x[0]))
+    for season in result:
+        s, _ = Season.objects.update_or_create(title=season[0], season_no=get_season_no(season[0]), season_url=season[1],
+                                        show=show)
+        s.save()
+    return result
 
 
 def get_episodes(show_name, season):
@@ -190,34 +198,52 @@ def get_referrer_link(episode_url, format='mp4'):
                     result[format] = (tag.get('href'), tag.string)
     return result[format]
 
-def download_file(referrer_link, download_path, file_name, show_name, season):
-    print referrer_link, download_path, file_name, show_name, season
-    folder_path = "{}/{}/{}".format(download_path, show_name, season)
+def download_file(referrer_link, download_path, file_name, show_name, season_name, download=True):
+    """
+    Download actual Video File
+    :param referrer_link: A string of the Referrer Link to Download
+    :param download_path: A string of the Path to Folder where file will be stored
+    :param file_name: A string of the Filename for download
+    :param show_name: A string of the  Name of Show being processed
+    :param season_name: A string of the Season of Show being processed
+    :param download: A boolean stating if File should be downloaded or not
+    :return:
+    """
+    folder_path = "{}/{}/{}".format(download_path, show_name, season_name)
     full_file_save_path = "{}/{}".format(folder_path, file_name)
 
-    if not os.path.exists(folder_path):
-        os.makedirs(folder_path)
-        os.chmod(folder_path, 0o777)
-
     result = requests.get(str(referrer_link), stream=True, headers=headers)
+    file_size = int(result.headers.get('content-length'))
 
-    with open(full_file_save_path, 'wb') as f:
-        file_size = int(result.headers.get('content-length'))
-        for chunk in progress.bar(result.iter_content(chunk_size=1024), expected_size=(file_size / 1024) + 1):
-            if chunk:
-                f.write(chunk)
-                f.flush()
+    if download:
+        if not os.path.exists(folder_path):
+            os.makedirs(folder_path)
+            os.chmod(folder_path, 0o777)
+
+        with open(full_file_save_path, 'wb') as f:
+            for chunk in progress.bar(result.iter_content(chunk_size=1024), expected_size=(file_size / 1024) + 1):
+                if chunk:
+                    f.write(chunk)
+                    f.flush()
+
+    return dict(save_location=folder_path, file_size=file_size)
 
 def download_specific_episode(action_item):
     print prompts[action_item]
     show_name = raw_input("Enter the Show Name eg. 'Arrow': ")
-    _, proper_show_name = get_show_url(show_name)
+    show_url, proper_show_name = get_show_url(show_name)
     seasons = get_show_seasons(show_name)
     season_number = raw_input(
         "This show has {no_of_seasons} seasons, Please enter a number from 1 - {no_of_seasons}: ".format(
             no_of_seasons=len(seasons)))
     try:
-        season = seasons[int(season_number) - 1][0]
+        season_name, season_url = seasons[int(season_number) - 1]
+
+        db_show, show_created = Show.objects.get_or_create(title=proper_show_name, show_url=show_url)
+        db_season, season_created = Season.objects.get_or_create(title=season_name, season_url=season_url, show=db_show,
+                                                                 season_number=int(season_number))
+        db_show.save() if show_created else ""
+        db_season.save() if season_created else ""
 
         episodes = get_episodes(show_name, season_number)
 
@@ -226,19 +252,64 @@ def download_specific_episode(action_item):
         episode_no = int(episode_no)
 
         episode_no = episode_no if len(str(episode_no)) > 1 else '0{}'.format(episode_no)
-        for url in episodes:
-            if ('Episode' in url[0] and str(episode_no) in url[0]):
-                print url, episode_no
-        episode_url = [url[1] for url in episodes if ('Episode' in url[0] and str(episode_no) in url[0])][0]
+        episode_title, episode_url = [url for url in episodes if ('Episode' in url[0] and str(episode_no) in url[0])][0]
     except:
         print "Invalid Entry, please try again"
         raise
     referrer_link, file_name = get_referrer_link(episode_url)
-    download_file(referrer_link, settings.DOWNLOAD_PATH, file_name, proper_show_name, season)
+    f = download_file(referrer_link, settings.DOWNLOAD_PATH, file_name, proper_show_name, season_name)
+    e, _ = Episode.objects.update_or_create(show=db_show, season=db_season, episode_title=episode_title,
+                                            episode_url=episode_url, referrer_link=referrer_link,
+                                            file_format=file_name[-3:], file_name=file_name, downloaded=True, **f)
+    e.save()
 
 
-def new_show(input):
-    url, _ = get_show_url(input)
+
+def update_repertoire():
+    shows = Show.objects.filter(active=True)
+    for show in shows:
+        get_show_seasons(show.title)
+        seasons = Season.objects.filter(show=show)
+        for season in seasons:
+            db_episodes = [episode.episode_title for episode in Episode.objects.filter(season=season)]
+            show_episodes = get_episodes(show.title, season.season_no)
+            for episode in show_episodes:
+                if episode[0] not in db_episodes:
+                    referrer_link, file_name = get_referrer_link(episode[1])
+                    d = download_file(referrer_link=referrer_link, download_path=settings.DOWNLOAD_PATH,
+                                      file_name=file_name, show_name=show.title, season_name=season.title, download=True)
+                    e, _ = Episode.objects.update_or_create(show=show, season=season, episode_title=episode[0],
+                                                            episode_url=episode[1], referrer_link=referrer_link,
+                                                            file_format=file_name[-3:], file_name=file_name,
+                                                            downloaded=True, **d)
+                    e.save()
+
+def populate_db(show_name):
+    show_url, proper_show_name = get_show_url(show_name)
+    show, _ = Show.objects.get_or_create(title=proper_show_name, active=True)
+    if not show.show_url:
+        show.show_url = show_url
+    show.save()
+
+    seasons = get_show_seasons(show_name)
+    for season_name, season_url in seasons:
+        print proper_show_name, season_name
+        db_season, _ = Season.objects.get_or_create(title=season_name, season_url=season_url, show=show, season_no=get_season_no(season_name))
+        db_season.save()
+        for episode_title, episode_url in get_episodes(show_name, get_season_no(season_name)):
+            print episode_title
+            referrer_link, file_name = get_referrer_link(episode_url)
+            f = download_file(referrer_link, settings.DOWNLOAD_PATH, file_name, proper_show_name, db_season.title, download=False)
+            e, _ = Episode.objects.update_or_create(show=show, season=db_season, episode_title=episode_title,
+                                                    episode_url=episode_url, referrer_link=referrer_link,
+                                                    file_format=file_name[-3:], file_name=file_name, downloaded=True, **f)
+            e.save()
+
+def populate_shows():
+    for show in sorted(settings.WATCHED_SHOWS):
+        print "Populating {}".format(show)
+        populate_db(show)
+
 
 
 if __name__ == "__main__":
@@ -249,3 +320,7 @@ if __name__ == "__main__":
             print get_referrer_link(url, 'mp4')
     elif action_item == 3:
         download_specific_episode(action_item)
+    elif action_item == 4:
+        populate_db(raw_input(prompts[action_item]))
+    elif action_item == 5:
+        populate_shows()
