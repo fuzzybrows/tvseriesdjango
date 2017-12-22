@@ -126,7 +126,6 @@ def get_show_seasons(show_name):
     """
     show_url, proper_show_name = get_show_url(show_name)
     show, _ = Show.objects.get_or_create(title=proper_show_name, show_url=show_url, active=True)
-    show.save()
     tags = get_a_tags(show_url)
     seasons = []
     for tag in tags:
@@ -137,7 +136,6 @@ def get_show_seasons(show_name):
     for season in result:
         s, _ = Season.objects.update_or_create(title=season[0], season_no=get_season_no(season[0]), season_url=season[1],
                                         show=show)
-        s.save()
     return result
 
 
@@ -149,6 +147,8 @@ def get_episodes(show_name, season):
     :return: a sorted list of show episode urls
     """
     seasons = get_show_seasons(show_name)
+    show_url, proper_show_name = get_show_url(show_name)
+    show = Show.objects.get(title=proper_show_name)
     try:
         season_number = int(season)
 
@@ -156,8 +156,8 @@ def get_episodes(show_name, season):
         raise
 
     try:
-        season_home_url = seasons[season_number - 1][1]
-    except IndexError as e:
+        season_home_url = Season.objects.get(season_no=season_number, show=show).season_url
+    except Season.DoesNotExist as e:
         print "{} has no season {}".format(show_name, season_number)
         raise
     tags = get_a_tags(season_home_url)
@@ -242,9 +242,6 @@ def download_specific_episode(action_item):
         db_show, show_created = Show.objects.get_or_create(title=proper_show_name, show_url=show_url)
         db_season, season_created = Season.objects.get_or_create(title=season_name, season_url=season_url, show=db_show,
                                                                  season_number=int(season_number))
-        db_show.save() if show_created else ""
-        db_season.save() if season_created else ""
-
         episodes = get_episodes(show_name, season_number)
 
         episode_no = raw_input("Please enter the episode No: ")
@@ -261,7 +258,6 @@ def download_specific_episode(action_item):
     e, _ = Episode.objects.update_or_create(show=db_show, season=db_season, episode_title=episode_title,
                                             episode_url=episode_url, referrer_link=referrer_link,
                                             file_format=file_name[-3:], file_name=file_name, downloaded=True, **f)
-    e.save()
 
 
 
@@ -273,8 +269,10 @@ def update_repertoire():
         for season in seasons:
             db_episodes = [episode.episode_title for episode in Episode.objects.filter(season=season)]
             show_episodes = get_episodes(show.title, season.season_no)
+            print show.title, season.title
             for episode in show_episodes:
                 if episode[0] not in db_episodes:
+                    print "Downloading {}".format(episode[0])
                     referrer_link, file_name = get_referrer_link(episode[1])
                     d = download_file(referrer_link=referrer_link, download_path=settings.DOWNLOAD_PATH,
                                       file_name=file_name, show_name=show.title, season_name=season.title, download=True)
@@ -282,20 +280,19 @@ def update_repertoire():
                                                             episode_url=episode[1], referrer_link=referrer_link,
                                                             file_format=file_name[-3:], file_name=file_name,
                                                             downloaded=True, **d)
-                    e.save()
+                else:
+                    print "{} already downloaded".format(episode[0])
 
 def populate_db(show_name):
     show_url, proper_show_name = get_show_url(show_name)
     show, _ = Show.objects.get_or_create(title=proper_show_name, active=True)
     if not show.show_url:
         show.show_url = show_url
-    show.save()
 
     seasons = get_show_seasons(show_name)
     for season_name, season_url in seasons:
         print proper_show_name, season_name
         db_season, _ = Season.objects.get_or_create(title=season_name, season_url=season_url, show=show, season_no=get_season_no(season_name))
-        db_season.save()
         for episode_title, episode_url in get_episodes(show_name, get_season_no(season_name)):
             print episode_title
             referrer_link, file_name = get_referrer_link(episode_url)
@@ -303,10 +300,17 @@ def populate_db(show_name):
             e, _ = Episode.objects.update_or_create(show=show, season=db_season, episode_title=episode_title,
                                                     episode_url=episode_url, referrer_link=referrer_link,
                                                     file_format=file_name[-3:], file_name=file_name, downloaded=True, **f)
-            e.save()
 
-def populate_shows():
-    for show in sorted(settings.WATCHED_SHOWS):
+def populate_shows(last_updated=None):
+    shows = sorted(settings.WATCHED_SHOWS)
+    if last_updated:
+        try:
+            shows = shows[shows.index(last_updated):]
+        except:
+            print "No show with specified name"
+            return
+
+    for show in shows:
         print "Populating {}".format(show)
         populate_db(show)
 
@@ -318,9 +322,11 @@ if __name__ == "__main__":
         input_value = raw_input(prompts[action_item])
         for episode, url in get_episodes(input_value, 1):
             print get_referrer_link(url, 'mp4')
+    elif action_item == 2:
+        update_repertoire()
     elif action_item == 3:
         download_specific_episode(action_item)
     elif action_item == 4:
         populate_db(raw_input(prompts[action_item]))
     elif action_item == 5:
-        populate_shows()
+        populate_shows("Hawaii")
