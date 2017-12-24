@@ -102,3 +102,7 @@ ENV/
 
 # Database
 db.sqlite3
+
+#Others
+cron_script.sh
+log.txt
