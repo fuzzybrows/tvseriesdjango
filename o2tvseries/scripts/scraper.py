@@ -31,7 +31,8 @@ def input():
                (2, "Update Show Repertoire"),
                (3, "Download Specific Episode"),
                (4, "Pre-populate db for single show"),
-                (5,"Pre-populate db for all Shows")])
+                (5,"Pre-populate db for all Shows"),
+                (6, "Update Show URLs")])
 
     for num, text in options.iteritems():
         print "{}, {}".format(num, text)
@@ -85,6 +86,11 @@ def get_a_tags(url):
 
 
 def get_show_url(show_name):
+    """
+    Obtains Proper Show Name and Show Index URL
+    :param show_name: given name
+    :return: 2 tuple of Show Url and Proper Show Name
+    """
     show_name_lower = show_name.lower()
     show_name_list = show_name_lower.split(' ')
     show_group_url = get_show_group_url(show_name_list)
@@ -126,7 +132,7 @@ def get_show_seasons(show_name):
     :return: a sorted list of 2 Tuples containing Season Name and Season URL
     """
     show_url, proper_show_name = get_show_url(show_name)
-    show, _ = Show.objects.get_or_create(title=proper_show_name, show_url=show_url, active=True)
+    show, _ = Show.objects.get_or_create(title=proper_show_name, active=True, defaults=dict(show_url=show_url))
     tags = get_a_tags(show_url)
     seasons = []
     for tag in tags:
@@ -149,7 +155,7 @@ def get_episodes(show_name, season):
     """
     seasons = get_show_seasons(show_name)
     show_url, proper_show_name = get_show_url(show_name)
-    show = Show.objects.get(title=proper_show_name)
+    show = Show.objects.filter(title=proper_show_name).last()
     try:
         season_number = int(season)
 
@@ -238,9 +244,10 @@ def download_specific_episode(show_name):
     try:
         season_name, season_url = seasons[int(season_number) - 1]
 
-        db_show, show_created = Show.objects.get_or_create(title=proper_show_name, show_url=show_url)
-        db_season, season_created = Season.objects.get_or_create(title=season_name, season_url=season_url, show=db_show,
-                                                                 season_no=int(season_number))
+        db_show, show_created = Show.objects.get_or_create(title=proper_show_name, defaults=dict(show_url=show_url))
+        db_season, season_created = Season.objects.get_or_create(title=season_name, show=db_show,
+                                                                 defaults=dict(season_url=season_url,
+                                                                 season_no=int(season_number)))
         episodes = get_episodes(show_name, season_number)
 
         episode_no = raw_input("Please enter the episode No: ")
@@ -280,7 +287,7 @@ def update_repertoire():
                                                             file_format=file_name[-3:], file_name=file_name,
                                                             downloaded=True, **d)
                 else:
-                    if not sys.argv[1]:
+                    if len(sys.argv) <= 1:
                         print "{} already downloaded".format(episode[0])
 
 def download_single_show(show_name, download=False):
@@ -293,8 +300,8 @@ def download_single_show(show_name, download=False):
     seasons = get_show_seasons(show_name)
     for season_name, season_url in seasons:
         print proper_show_name, season_name
-        db_season, _ = Season.objects.get_or_create(title=season_name, season_url=season_url, show=show,
-                                                    season_no=get_season_no(season_name))
+        db_season, _ = Season.objects.get_or_create(title=season_name, show=show, defaults=dict(season_url=season_url,
+                                                    season_no=get_season_no(season_name)))
         db_episodes = [episode.episode_title for episode in Episode.objects.filter(season=db_season)]
         for episode_title, episode_url in get_episodes(show_name, get_season_no(season_name)):
             if episode_title not in db_episodes:
@@ -322,21 +329,51 @@ def populate_shows(last_updated=None):
         print "Populating {}".format(show)
         download_single_show(show)
 
+def update_urls():
+    shows = Show.objects.all()
+    for show in shows:
+        show_url, _ = get_show_url(show.title)
+        if str(show_url) != str(show.show_url):
+            print "Updating {}".format(show.title)
+            seasons = get_show_seasons(show.title)
+            for season_title, season_url in seasons:
+                s = Season.objects.get(show=show, title=season_title)
+                s.season_url = season_url
+                s.save()
+        show.show_url = show_url
+        show.save()
+    print "Show URLs updated"
+
+
 def start_program():
     print "Program Started at {}".format(datetime.now())
-    action_item = int(sys.argv[1]) if sys.argv[1] else input()
+    action_item = int(sys.argv[1]) if len(sys.argv) > 1 else input()
     if action_item == 1:
+        start_time = datetime.now()
         download_single_show(raw_input(prompts[action_item]), download=True)
+        duration = datetime.now() - start_time
     elif action_item == 2:
+        start_time = datetime.now()
         update_repertoire()
+        duration = datetime.now() - start_time
     elif action_item == 3:
         print prompts[action_item]
+        start_time = datetime.now()
         download_specific_episode(raw_input("Enter the Show Name eg. 'Arrow': "))
+        duration = datetime.now() - start_time
     elif action_item == 4:
+        start_time = datetime.now()
         download_single_show(raw_input(prompts[action_item]))
+        duration = datetime.now() - start_time
     elif action_item == 5:
+        start_time = datetime.now()
         populate_shows()
-
+        duration = datetime.now() - start_time
+    elif action_item == 6:
+        start_time = datetime.now()
+        update_urls()
+        duration = datetime.now() - start_time
+    print "Task Duration: {}".format(duration)
 
 if __name__ == "__main__":
     start_program()
