@@ -1,4 +1,6 @@
 import os, sys
+import random
+from urllib import quote
 
 proj_path = "/Users/oreoluwa/Desktop/Projects/tvseriesdownloaddjango"
 # This is so Django knows where to find stuff.
@@ -181,10 +183,26 @@ def get_episodes(show_name, season):
                 episodes.append((tag.string, tag.get('href')))
     return sorted(episodes, key=lambda x: int(re.search("episode\s(\d+)", x[0].lower()).group(1)))
 
-def get_referrer_link(episode_url, format='mp4'):
+def rand_seed(endpoint=5):
+    return random.randrange(1, endpoint)
+
+
+def construct_download_url(show_name, season_name, filename):
+    url = "{protocol}://d{rand_seed}.{domain_name}/" \
+          "{show_name}/{season_name}/{filename}".format(protocol=settings.PROTOCOL,
+                                                        rand_seed=rand_seed(),
+                                                        domain_name=settings.DOMAIN_NAME,
+                                                        show_name=show_name,
+                                                        season_name=season_name,
+                                                        filename=filename)
+    return quote(url, safe=":/")
+
+def get_referrer_link(episode_url, show_name, season_name, format='mp4'):
     """
     Method that obtains referrer link of supplied episode
     :param episode_url: url for episode to be downloaded
+    :show_name: Name of show
+    :season_name: Name/Title of Season eg "Season 01"
     :param format: format of episode to be downloaded 3gp/mp4
     :return: a 2-Tuple containing referrer link and filename
     """
@@ -194,15 +212,16 @@ def get_referrer_link(episode_url, format='mp4'):
     for tag in tags:
         if tag.string:
             if tag.string.lower().endswith(format):
+                url = construct_download_url(show_name, season_name, tag.string)
                 if format == 'mp4':
                     hd = lq = ""
                     if 'HD' in tag.string:
-                        hd = (tag.get('href'), tag.string)
+                        hd = (url, tag.string)
                     else:
-                        lq = (tag.get('href'), tag.string)
+                        lq = (url, tag.string)
                     result[format] = hd if hd else lq
                 else:
-                    result[format] = (tag.get('href'), tag.string)
+                    result[format] = (url, tag.string)
     return result[format]
 
 def download_file(referrer_link, download_path, file_name, show_name, season_name, download=True):
@@ -259,7 +278,7 @@ def download_specific_episode(show_name):
     except:
         print "Invalid Entry, please try again"
         raise
-    referrer_link, file_name = get_referrer_link(episode_url)
+    referrer_link, file_name = get_referrer_link(episode_url, proper_show_name, season_name)
     f = download_file(referrer_link, settings.DOWNLOAD_PATH, file_name, proper_show_name, season_name)
     e, _ = Episode.objects.update_or_create(show=db_show, season=db_season, episode_title=episode_title,
                                             episode_url=episode_url, referrer_link=referrer_link,
@@ -277,7 +296,7 @@ def update_repertoire():
             print show.title, season.title
             for episode in show_episodes:
                 if episode[0] not in db_episodes:
-                    referrer_link, file_name = get_referrer_link(episode[1])
+                    referrer_link, file_name = get_referrer_link(episode[1], show.title, season.title)
                     print "Downloading {}".format(file_name)
                     d = download_file(referrer_link=referrer_link, download_path=settings.DOWNLOAD_PATH,
                                       file_name=file_name, show_name=show.title, season_name=season.title,
@@ -305,7 +324,7 @@ def download_single_show(show_name, download=False):
         db_episodes = [episode.episode_title for episode in Episode.objects.filter(season=db_season)]
         for episode_title, episode_url in get_episodes(show_name, get_season_no(season_name)):
             if episode_title not in db_episodes:
-                referrer_link, file_name = get_referrer_link(episode_url)
+                referrer_link, file_name = get_referrer_link(episode_url, proper_show_name, season_name)
                 print "Downloading {}".format(file_name)
                 f = download_file(referrer_link, settings.DOWNLOAD_PATH, file_name, proper_show_name, db_season.title,
                                   download=download)

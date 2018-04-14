@@ -123,7 +123,9 @@ STATIC_URL = '/static/'
 #TEMPLATE_DIRS = (os.path.join(BASE_DIR,  'templates'),)
 
 DOWNLOAD_PATH = "/Users/oreoluwa/Downloads/TVshows"
-SOURCE_URL = "http://o2tvseries.com"
+PROTOCOL = "http"
+DOMAIN_NAME = "o2tvseries.com"
+SOURCE_URL = "{}://{}".format(PROTOCOL, DOMAIN_NAME)
 USER_AGENT = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/535.11 (KHTML, like Gecko) Ubuntu/11.10 Chromium/27.0.1453.93 Chrome/27.0.1453.93 Safari/537.36"
 WATCHED_SHOWS = [
             'Arrow', 'Blindspot', 'Agents of shield', 'Empire', 'Gotham',
