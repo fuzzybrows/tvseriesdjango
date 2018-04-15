@@ -336,7 +336,9 @@ def download_single_show(show_name, download=False):
                 print "{} already downloaded".format(episode_title)
 
 def populate_shows(last_updated=None):
-    shows = sorted(settings.WATCHED_SHOWS)
+    shows = [show.title for show in Show.objects.all().order_by('title')]
+    if not shows:
+        shows = sorted(settings.WATCHED_SHOWS)
     if last_updated:
         try:
             shows = shows[shows.index(last_updated):]
