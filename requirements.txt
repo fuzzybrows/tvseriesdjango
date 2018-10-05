@@ -7,7 +7,7 @@ certifi==2017.11.5
 chardet==3.0.4
 clint==0.5.1
 decorator==4.1.2
-Django==1.11.3
+Django~=1.11.3
 enum34==1.1.6
 idna==2.6
 ipdb==0.10.3
