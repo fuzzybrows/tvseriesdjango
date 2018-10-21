@@ -10,11 +10,25 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/1.11/ref/settings/
 """
 
+DEVELOP = 'develop'
+
+from dotenv import load_dotenv
+import dj_database_url
 import os
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
+
+
+ENVIRONMENT_NAME = DEVELOP
+
+if ENVIRONMENT_NAME == DEVELOP:
+    # Create .env file path.
+    dotenv_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), '.env')
+
+    # Load file from the path.
+    load_dotenv(dotenv_path)
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/1.11/howto/deployment/checklist/
@@ -76,10 +90,21 @@ WSGI_APPLICATION = 'tvseriesdownloaddjango.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': os.path.join(BASE_DIR, 'db.sqlite3'),
+        'ENGINE': 'django.db.backends.postgresql_psycopg2',
+        'NAME': os.getenv('PGDATABASE', ''),
+        'USER': os.getenv('PGUSER', ''),
+        'PASSWORD': os.getenv('PGPASSWORD', ''),
+        'HOST': os.getenv('PGHOST', ''),
+        'PORT': os.getenv('PGPORT', ''),
+        'TEST': {
+            'NAME': os.getenv('TEST_PGDATABASE', 'test_asac'),
+        },
     }
+
 }
+
+if os.getenv('DATABASE_URL'):
+    DATABASES = dict(default=dj_database_url.parse(os.getenv('DATABASE_URL'), conn_max_age=600))
 
 
 # Password validation
@@ -122,14 +147,17 @@ STATIC_URL = '/static/'
 
 #TEMPLATE_DIRS = (os.path.join(BASE_DIR,  'templates'),)
 
-DOWNLOAD_PATH = "/Users/oreoluwa/Downloads/TVshows"
+HOME_PATH = os.path.expanduser('~')
+DOWNLOAD_PATH = "{}/Downloads/TVshows".format(HOME_PATH)
 PROTOCOL = "http"
 DOMAIN_NAME = "o2tvseries.com"
 SOURCE_URL = "{}://{}".format(PROTOCOL, DOMAIN_NAME)
 USER_AGENT = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/535.11 (KHTML, like Gecko) Ubuntu/11.10 Chromium/27.0.1453.93 Chrome/27.0.1453.93 Safari/537.36"
 WATCHED_SHOWS = [
-            'Arrow', 'Blindspot', 'Agents of shield', 'Empire', 'Gotham',
+            'Arrow', 'Blindspot', 'Agents of shield', 'Empire', 'Gotham', 'Altered Carbon', 'Black Lightning',
             'Greys Anatomy', 'How to get away with murder',
-            'Modern family', 'Reign', 'Quantico', 'The flash',
-            'Scandal', 'Hawaii', 'Supergirl', 'Iron Fist', 'Agent Carter', 'Power', 'Legends of tomorrow', 'Daredevil', 'Game of Thrones', 'Heroes Reborn', 'Mistresses', 'Orange is the new black', 'Vikings', 'Jessica Jones', 'Luke Cage'
+            'Reign', 'Quantico', 'The flash',
+            'Scandal', 'Hawaii', 'Supergirl', 
+            'Power', 'Legends of tomorrow', 'Daredevil', 'Game of Thrones', 'Orange is the new black',
+            'Jessica Jones', 'The Grand Tour', 'Designated Survivor', 'Suits'
 ]

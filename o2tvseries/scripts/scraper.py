@@ -1,8 +1,10 @@
 import os, sys
 import random
 from urllib import quote
+from django.conf import settings
 
-proj_path = "/Users/oreoluwa/Desktop/Projects/tvseriesdownloaddjango"
+proj_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 # This is so Django knows where to find stuff.
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "tvseriesdownloaddjango.settings")
 sys.path.append(proj_path)
@@ -336,9 +338,8 @@ def download_single_show(show_name, download=False):
                 print "{} already downloaded".format(episode_title)
 
 def populate_shows(last_updated=None):
-    shows = [show.title for show in Show.objects.all().order_by('title')]
-    if not shows:
-        shows = sorted(settings.WATCHED_SHOWS)
+    shows = sorted(list(set([show.title for show in Show.objects.all().order_by('title')] + settings.WATCHED_SHOWS)))
+
     if last_updated:
         try:
             shows = shows[shows.index(last_updated):]
