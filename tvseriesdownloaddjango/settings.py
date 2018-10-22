@@ -148,7 +148,7 @@ STATIC_URL = '/static/'
 #TEMPLATE_DIRS = (os.path.join(BASE_DIR,  'templates'),)
 
 HOME_PATH = os.path.expanduser('~')
-DOWNLOAD_PATH = "{}/Downloads/TVshows".format(HOME_PATH)
+DOWNLOADS_PATH = "{}/Downloads/TVshows".format(HOME_PATH)
 PROTOCOL = "http"
 DOMAIN_NAME = "o2tvseries.com"
 SOURCE_URL = "{}://{}".format(PROTOCOL, DOMAIN_NAME)
@@ -159,5 +159,5 @@ WATCHED_SHOWS = [
             'Reign', 'Quantico', 'The flash',
             'Scandal', 'Hawaii', 'Supergirl', 
             'Power', 'Legends of tomorrow', 'Daredevil', 'Game of Thrones', 'Orange is the new black',
-            'Jessica Jones', 'The Grand Tour', 'Designated Survivor', 'Suits'
+            'Jessica Jones', 'The Grand Tour', 'Designated Survivor', 'Suits', 'Inhumans', 'shooter', 'Krypton', 'The Blacklist', 'Queen Sugar', 'The Outpost'
 ]
