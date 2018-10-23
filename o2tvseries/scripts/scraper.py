@@ -306,11 +306,11 @@ def download_single_show(show_name, download=True):
                 print "{} already downloaded".format(episode[0].episode_title)
 
 def populate_shows(last_updated=None):
-    shows = sorted(list(set([show.title for show in Show.objects.all().order_by('title')] + settings.WATCHED_SHOWS)))
+    shows = sorted(list(set([show.title.lower() for show in Show.objects.all().order_by('title')] + [show.lower() for show in settings.WATCHED_SHOWS])))
 
     if last_updated:
         try:
-            shows = shows[shows.index(last_updated):]
+            shows = shows[shows.index(last_updated.lower()):]
         except:
             print "No show with specified name"
             return
