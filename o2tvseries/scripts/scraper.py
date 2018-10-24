@@ -153,7 +153,7 @@ def get_show_seasons(show_name):
     return Season.objects.filter(show=show).order_by('season_no')
 
 
-def get_episodes(season):
+def get_new_episodes(season):
     """
     Gets the list of episode urls for the supplied show and season
     :param season: season model instance
@@ -166,16 +166,16 @@ def get_episodes(season):
     for page_number in range(1, int(last_page_no) + 1):
         page_url = "{}/page{}.html".format(season.season_url[:-11], page_number)
         page_tags = get_a_tags(page_url)
-        # episode_titles = [episode.episode_title.lower() for episode in Episode.objects.filter(season=season)]
+        episode_titles = [episode.episode_title.lower() for episode in Episode.objects.filter(season=season)]
         for tag in page_tags:
-            checker = tag.string and re.search(r'episode\s\d+', tag.string.lower()) #and tag.string.lower() not in episode_titles
+            checker = tag.string and re.search(r'episode\s\d+', tag.string.lower()) and tag.string.lower() not in episode_titles
             if checker:
                 defaults = dict(season=season, show=season.show,
                                 episode_title=tag.string, episode_url=tag.get('href'),
                                 episode_no=get_episode_no(tag.string))
                 Episode.objects.update_or_create(defaults=defaults, season=season, show=season.show,
                                                  episode_title=tag.string)
-    return Episode.objects.filter(season=season).order_by('episode_no')
+    return Episode.objects.filter(season=season, downloaded=False).order_by('episode_no')
 
 def rand_seed(endpoint=5):
     return random.randrange(1, endpoint)
@@ -260,7 +260,7 @@ def download_specific_episode(show_name):
             first_available_season=seasons.first().season_no, last_season=seasons.last().season_no))
     try:
         season = seasons.get(season_no=int(season_number))
-        episodes = get_episodes(season)
+        episodes = get_new_episodes(season)
         episode_no = raw_input("Please enter the episode No: ")
         episode_no = int(episode_no)
         episode = episodes.filter(episode_no=episode_no)
@@ -274,30 +274,28 @@ def download_specific_episode(show_name):
 def update_repertoire():
     shows = Show.objects.filter(active=True)
     for show in shows:
-        get_show_seasons(show.title)
-        seasons = Season.objects.filter(show=show)
-        for season in seasons:
-            show_episodes = get_episodes(season)
-            print show.title, season.title
-            for _episode, in show_episodes:
-                episode = show_episodes.filter(id=_episode.id)
-                if not episode[0].downloaded:
-                    referrer_link, file_name = get_referrer_link(episode[0])
-                    print "Downloading {}".format(file_name)
-                    download_file(episode=episode, referrer_link=referrer_link, file_name=file_name, download=True)
-                else:
-                    if len(sys.argv) <= 1:
-                        print "{} already downloaded".format(episode[0].episode_title)
+        seasons = get_show_seasons(show.title)
+        season = seasons.order_by('season_no').last()
+        show_episodes = get_new_episodes(season)
+        print show.title, season.title
+        for _episode in show_episodes:
+            episode = show_episodes.filter(id=_episode.id)
+            if not episode[0].downloaded:
+                referrer_link, file_name = get_referrer_link(episode[0])
+                print "Downloading {}".format(file_name)
+                download_file(episode=episode, referrer_link=referrer_link, file_name=file_name, download=True)
+            else:
+                if len(sys.argv) <= 1:
+                    print "{} already downloaded".format(episode[0].episode_title)
 
 def download_single_show(show_name, download=True):
     seasons = get_show_seasons(show_name)
     for season in seasons:
         print season.show.title, season.title
 
-        episodes = get_episodes(season)
+        episodes = get_new_episodes(season)
         for _episode in episodes:
             episode = episodes.filter(id=_episode.id)
-            # import ipdb; ipdb.set_trace()
             if not episode[0].downloaded:
                 referrer_link, file_name = get_referrer_link(episode[0])
                 print "Downloading {}".format(file_name)
