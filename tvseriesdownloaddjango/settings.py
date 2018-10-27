@@ -90,17 +90,9 @@ WSGI_APPLICATION = 'tvseriesdownloaddjango.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.postgresql_psycopg2',
-        'NAME': os.getenv('PGDATABASE', ''),
-        'USER': os.getenv('PGUSER', ''),
-        'PASSWORD': os.getenv('PGPASSWORD', ''),
-        'HOST': os.getenv('PGHOST', ''),
-        'PORT': os.getenv('PGPORT', ''),
-        'TEST': {
-            'NAME': os.getenv('TEST_PGDATABASE', 'test_asac'),
-        },
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': os.path.join(BASE_DIR, 'db.sqlite3')
     }
-
 }
 
 if os.getenv('DATABASE_URL'):
@@ -145,7 +137,7 @@ USE_TZ = True
 
 STATIC_URL = '/static/'
 
-#TEMPLATE_DIRS = (os.path.join(BASE_DIR,  'templates'),)
+
 
 HOME_PATH = os.path.expanduser('~')
 DOWNLOADS_PATH = "{}/Downloads/TVshows".format(HOME_PATH)
