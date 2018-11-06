@@ -166,7 +166,7 @@ def get_new_episodes(season):
     for page_number in range(1, int(last_page_no) + 1):
         page_url = "{}/page{}.html".format(season.season_url[:-11], page_number)
         page_tags = get_a_tags(page_url)
-        episode_titles = [episode.episode_title.lower() for episode in Episode.objects.filter(season=season)]
+        episode_titles = (episode.episode_title.lower() for episode in Episode.objects.filter(season=season))
         for tag in page_tags:
             checker = tag.string and re.search(r'episode\s\d+', tag.string.lower()) and tag.string.lower() not in episode_titles
             if checker:
