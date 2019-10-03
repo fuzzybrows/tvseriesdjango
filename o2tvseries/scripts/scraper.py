@@ -149,7 +149,8 @@ def get_show_seasons(show_name):
             seasons.append((tag.string, tag.get('href'), get_season_no(tag.string)))
     results =  sorted(seasons, key=lambda x: x[2])
     for season in results:
-        s, _ = Season.objects.update_or_create(title=season[0], season_no=season[2], season_url=season[1], show=show)
+        s, _ = Season.objects.update_or_create(title=season[0], season_no=season[2], show=show,
+                                               defaults=dict(season_url=season[1]))
     return Season.objects.filter(show=show).order_by('season_no')
 
 
