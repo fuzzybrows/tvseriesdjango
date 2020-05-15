@@ -111,6 +111,8 @@ def get_show_url(show_name):
             checker = tag.string and show_name_lower and show_name_lower == tag.string.lower()
             if checker:
                 return (tag.get('href'), tag.string)
+            elif len(show_name_list) == 1:
+                continue
             else:
                 checker = tag.string and show_name_list[0] and show_name_list[0] in tag.string.lower()
                 if len(show_name_list) > 1:
